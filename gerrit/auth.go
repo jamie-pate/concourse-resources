@@ -86,6 +86,8 @@ func (am *authManager) gerritAuth() (gerrit.Auth, error) {
 		} else {
 			return gerrit.BasicAuth(am.username, am.password), nil
 		}
+	} else if am.password != "" {
+		return nil, errors.New("Password specified but username is blank")
 	} else if am.cookies != "" {
 		cookiesPath, err := am.cookiesPath()
 		if err != nil {
