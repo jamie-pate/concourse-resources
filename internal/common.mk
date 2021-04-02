@@ -16,7 +16,7 @@ TREE_NAME=$(shell git write-tree)
 DIRTY_MARK=-dirty-$(shell git rev-parse --short ${TREE_NAME})
 BUILD=$(shell git describe --always --dirty=${DIRTY_MARK})
 
-IMAGE_NAME=us.gcr.io/concourse-resources/${NAME}
+IMAGE_NAME=localhost:5000/${NAME}
 IMAGE_TAG=${IMAGE_NAME}:${BUILD}
 
 LDFLAGS=-ldflags "-X main.Build=${BUILD}"
@@ -38,7 +38,7 @@ image: build
 	docker build -t ${IMAGE_TAG} build/
 
 image-push: image
-	gcloud docker -- push ${IMAGE_TAG}
+	docker -- push ${IMAGE_TAG}
 
 image-run: image
 	docker run --rm -it ${IMAGE_TAG} /bin/sh
