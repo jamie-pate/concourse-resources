@@ -82,6 +82,14 @@ func out(req resource.OutRequest) error {
 		}
 	}
 
+	buildUrl := fmt.Sprintf(
+		"%v/teams/%v/pipelines/%v/jobs/%v/builds/%v",
+		os.Getenv("ATC_EXTERNAL_URL"),
+		os.Getenv("BUILD_TEAM_NAME"),
+		os.Getenv("BUILD_PIPELINE_NAME"),
+		os.Getenv("BUILD_JOB_NAME"),
+		os.Getenv("BUILD_NAME"),
+	)
 	// Replace environment variables in message
 	var variableTokens = map[string]string{
 		"${BUILD_ID}":            os.Getenv("BUILD_ID"),
@@ -90,6 +98,7 @@ func out(req resource.OutRequest) error {
 		"${BUILD_PIPELINE_NAME}": os.Getenv("BUILD_PIPELINE_NAME"),
 		"${BUILD_TEAM_NAME}":     os.Getenv("BUILD_TEAM_NAME"),
 		"${ATC_EXTERNAL_URL}":    os.Getenv("ATC_EXTERNAL_URL"),
+		"${BUILD_URL}":           buildUrl,
 	}
 
 	for k, v := range variableTokens {
