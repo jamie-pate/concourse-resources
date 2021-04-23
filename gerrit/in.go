@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -43,11 +42,6 @@ var (
 )
 
 type inParams struct {
-	FetchProtocol  string `json:"fetch_protocol"`
-	FetchUrl       string `json:"fetch_url"`
-	PrivateKey     string `json:"private_key"`
-	PrivateKeyUser string `json:"private_key_user"`
-	Depth          int    `json:"depth"`
 }
 
 func init() {
@@ -80,10 +74,11 @@ func in(req resource.InRequest) error {
 		return err
 	}
 
-	fetchUrl, fetchRef, err := resolveFetchUrlRef(params, rev)
+	fetchUrl, fetchRef, err := resolveFetchUrlRef(src, rev)
 	if err != nil {
 		return fmt.Errorf("could not resolve fetch args for change %q: %v", change.ID, err)
 	}
+	log.Printf("Fetching from %v with %v ssh key len: %v", fetchUrl, src.PrivateKeyUser, len(src.PrivateKey))
 
 	// Prepare destination repo and checkout requested revision
 	log.Printf("Checking out in %v", dir)
@@ -95,19 +90,9 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
-	privateKeyPath, err := storePrivateKey(params)
-	// func() closure to capture error result
-	// last line is 'return err' instead of 'return nil'
-	defer func() {
-		err = erasePrivateKey(privateKeyPath)
-	}()
 	configArgs, err := authMan.gitConfigArgs()
 	if err != nil {
 		return fmt.Errorf("error getting git config args: %v", err)
-	}
-	if privateKeyPath != "" {
-		// -F /dev/null is paranoia to prevent any other ssh config from being used
-		configArgs["core.sshCommand"] = fmt.Sprintf("ssh -i '%v' -F /dev/null", privateKeyPath)
 	}
 	for key, value := range configArgs {
 		err = git(req.TargetDir(), "config", key, value)
@@ -116,12 +101,16 @@ func in(req resource.InRequest) error {
 		}
 	}
 
+	err = git(dir, "--version")
+	if err != nil {
+		return err
+	}
 	err = git(dir, "remote", "add", "origin", fetchUrl)
 	if err != nil {
 		return err
 	}
 
-	err = git(dir, fetchFlags(params, "fetch", "origin", fetchRef)...)
+	err = git(dir, fetchFlags(src, "fetch", "origin", fetchRef)...)
 	if err != nil {
 		return err
 	}
@@ -131,7 +120,7 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
-	err = git(dir, fetchFlags(params, "submodule", "update", "--init", "--recursive")...)
+	err = git(dir, fetchFlags(src, "submodule", "update", "--init", "--recursive")...)
 	if err != nil {
 		return err
 	}
@@ -208,53 +197,20 @@ func in(req resource.InRequest) error {
 	return err
 }
 
-func fetchFlags(params inParams, flags ...string) []string {
-	if params.Depth > 0 {
-		flags = append(flags, "--depth=%v")
+func fetchFlags(src Source, flags ...string) []string {
+	if src.Depth > 0 {
+		flags = append(flags, fmt.Sprintf("--depth=%v", src.Depth))
 	}
 	return flags
 }
 
-func erasePrivateKey(privateKeyPath string) (err error) {
-	if privateKeyPath == "" {
-		return nil
-	}
-	return os.Remove(privateKeyPath)
-}
-
-func storePrivateKey(params inParams) (privateKeyPath string, err error) {
-	// https://github.com/concourse/git-resource/blob/master/assets/common.sh#L4
-	if params.PrivateKey == "" {
-		return
-	}
-	privateKeyFile, err := ioutil.TempFile("", "gerrit-resource-private-key-*")
-	if err != nil {
-		err = fmt.Errorf("Error storing private key: %v", err)
-		return
-	}
-	err = os.Chmod(privateKeyFile.Name(), 0600)
-	if err != nil {
-		err = fmt.Errorf("Error changing file access mode for private key: %v", err)
-	}
-	_, err = privateKeyFile.Write([]byte(params.PrivateKey))
-	if err != nil {
-		err2 := privateKeyFile.Truncate(0)
-		err2str := ""
-		if err2 != nil {
-			err2str = fmt.Sprintf(" %v", err2)
-		}
-		err = fmt.Errorf("Error writing to private key file: %v%v", err, err2str)
-	}
-	return
-}
-
-func resolveFetchUrlRef(params inParams, rev *gerrit.RevisionInfo) (url, ref string, err error) {
-	url = params.FetchUrl
-	if params.PrivateKeyUser != "" {
+func resolveFetchUrlRef(src Source, rev *gerrit.RevisionInfo) (url, ref string, err error) {
+	url = src.FetchUrl
+	if src.PrivateKeyUser != "" {
 		if !strings.HasPrefix(url, "ssh://") {
 			return "", "", fmt.Errorf("FetchUrl '%v' is not an ssh url, but PrivateKeyUser was set", url)
 		}
-		parts := strings.SplitAfterN(url, "ssh://", 1)
+		parts := strings.SplitAfterN(url, "ssh://", 2)
 		if len(parts) != 2 {
 			return "", "", fmt.Errorf(
 				"Unable to split fetchUrl %v to insert the privateKeyUser, got the wrong length: %v for %v",
@@ -263,11 +219,11 @@ func resolveFetchUrlRef(params inParams, rev *gerrit.RevisionInfo) (url, ref str
 				parts,
 			)
 		}
-		url = fmt.Sprintf("%s%s@%s", parts[0], params.PrivateKeyUser, parts[1])
+		url = fmt.Sprintf("%s%s@%s", parts[0], src.PrivateKeyUser, parts[1])
 	}
 	ref = rev.Ref
 	if url == "" {
-		fetchProtocol := params.FetchProtocol
+		fetchProtocol := src.FetchProtocol
 		if fetchProtocol == "" {
 			for _, proto := range defaultFetchProtocols {
 				if _, ok := rev.Fetch[proto]; ok {

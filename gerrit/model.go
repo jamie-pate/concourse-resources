@@ -25,12 +25,17 @@ const (
 )
 
 type Source struct {
-	Url        string `json:"url"`
-	Query      string `json:"query"`
-	Cookies    string `json:"cookies"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	DigestAuth bool   `json:"digest_auth"`
+	Url            string `json:"url"`
+	Query          string `json:"query"`
+	Cookies        string `json:"cookies"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	DigestAuth     bool   `json:"digest_auth"`
+	FetchProtocol  string `json:"fetch_protocol"`
+	FetchUrl       string `json:"fetch_url"`
+	PrivateKey     string `json:"private_key"`
+	PrivateKeyUser string `json:"private_key_user"`
+	Depth          int    `json:"depth"`
 }
 
 type Version struct {

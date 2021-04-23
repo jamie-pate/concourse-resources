@@ -33,18 +33,20 @@ type authManager struct {
 	cookies      string
 	cookiesPath_ string
 
-	username   string
-	password   string
-	digest     bool
-	credsPath_ string
+	username      string
+	password      string
+	digest        bool
+	sshPrivateKey string
+	credsPath_    string
 }
 
 func newAuthManager(source Source) *authManager {
 	return &authManager{
-		cookies:  source.Cookies,
-		username: source.Username,
-		password: source.Password,
-		digest:   source.DigestAuth,
+		cookies:       source.Cookies,
+		username:      source.Username,
+		password:      source.Password,
+		digest:        source.DigestAuth,
+		sshPrivateKey: source.PrivateKey,
 	}
 }
 
@@ -67,14 +69,20 @@ func (am *authManager) credsPath() (string, error) {
 
 	var err error
 	if am.credsPath_ == "" {
-		// See: https://www.kernel.org/pub/software/scm/git/docs/git-credential.html#IOFMT
-		if strings.ContainsAny(am.username, "\x00\n") ||
-			strings.ContainsAny(am.password, "\x00\n") {
-			return "", errors.New("invalid character in username or password")
+		if am.sshPrivateKey != "" {
+			am.credsPath_, err = storePrivateKey(am.sshPrivateKey)
+			// func() closure to capture error result
+			// last line is 'return err' instead of 'return nil'
+		} else {
+			// See: https://www.kernel.org/pub/software/scm/git/docs/git-credential.html#IOFMT
+			if strings.ContainsAny(am.username, "\x00\n") ||
+				strings.ContainsAny(am.password, "\x00\n") {
+				return "", errors.New("invalid character in username or password")
+			}
+			am.credsPath_, err = writeAuthTempFile(
+				"concourse-gerrit-creds",
+				fmt.Sprintf("username=%s\npassword=%s\n", am.username, am.password))
 		}
-		am.credsPath_, err = writeAuthTempFile(
-			"concourse-gerrit-creds",
-			fmt.Sprintf("username=%s\npassword=%s\n", am.username, am.password))
 	}
 	return am.credsPath_, err
 }
@@ -101,8 +109,15 @@ func (am *authManager) gerritAuth() (gerrit.Auth, error) {
 
 func (am *authManager) gitConfigArgs() (map[string]string, error) {
 	args := make(map[string]string)
-
-	if am.username != "" {
+	if am.sshPrivateKey != "" {
+		// -F /dev/null is paranoia to prevent any other ssh config from being used
+		credsPath, err := am.credsPath()
+		if err != nil {
+			return nil, err
+		}
+		// TODO: replace -o StrictHostKeyChecking=no with an explicit host fingerprint!
+		args["core.sshCommand"] = fmt.Sprintf("ssh -i '%v' -F /dev/null -o StrictHostKeyChecking=no", credsPath)
+	} else if am.username != "" {
 		// See: https://www.kernel.org/pub/software/scm/git/docs/technical/api-credentials.html#_credential_helpers
 		credsPath, err := am.credsPath()
 		if err != nil {
@@ -154,4 +169,31 @@ func writeAuthTempFile(suffix string, contents string) (string, error) {
 	}
 
 	return f.Name(), nil
+}
+
+func storePrivateKey(privateKey string) (privateKeyPath string, err error) {
+	// https://github.com/concourse/git-resource/blob/master/assets/common.sh#L4
+	if privateKey == "" {
+		return
+	}
+	privateKeyFile, err := ioutil.TempFile("", "gerrit-resource-private-key-*")
+	if err != nil {
+		err = fmt.Errorf("Error storing private key: %v", err)
+		return
+	}
+	err = os.Chmod(privateKeyFile.Name(), 0600)
+	if err != nil {
+		err = fmt.Errorf("Error changing file access mode for private key: %v", err)
+	}
+	_, err = privateKeyFile.Write([]byte(privateKey))
+	privateKeyPath = privateKeyFile.Name()
+	if err != nil {
+		err2 := privateKeyFile.Truncate(0)
+		err2str := ""
+		if err2 != nil {
+			err2str = fmt.Sprintf(" %v", err2)
+		}
+		err = fmt.Errorf("Error writing to private key file: %v%v", err, err2str)
+	}
+	return
 }
