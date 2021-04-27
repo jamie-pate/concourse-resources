@@ -28,7 +28,7 @@ LDFLAGS=-ldflags "-X main.Build=${BUILD}"
 # Prevent dynamic linking errors in docker containers
 export CGO_ENABLED=0
 
-build: clean
+build: $(wildcard *.go)
 	go build ${LDFLAGS} -o build/${NAME}
 	ln -s ${NAME} build/check
 	ln -s ${NAME} build/in
