@@ -14,7 +14,7 @@
 
 TREE_NAME=$(shell git write-tree)
 DIRTY_MARK=-dirty-$(shell git rev-parse --short ${TREE_NAME})
-BUILD=$(shell git describe --always --dirty=${DIRTY_MARK})
+BUILD:=$(shell git describe --always --dirty=${DIRTY_MARK})-$(shell date +%s)
 
 ifeq (${REGISTRY},)
 	REGISTRY=localhost:5000
@@ -34,6 +34,7 @@ build: clean
 	ln -s ${NAME} build/in
 	ln -s ${NAME} build/out
 
+.PHONY: clean
 clean:
 	rm -rf build
 
