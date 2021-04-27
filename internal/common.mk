@@ -16,7 +16,11 @@ TREE_NAME=$(shell git write-tree)
 DIRTY_MARK=-dirty-$(shell git rev-parse --short ${TREE_NAME})
 BUILD=$(shell git describe --always --dirty=${DIRTY_MARK})
 
-IMAGE_NAME=localhost:5000/${NAME}
+ifeq (${REGISTRY},)
+	REGISTRY=localhost:5000
+endif
+
+IMAGE_NAME=${REGISTRY}/${NAME}
 IMAGE_TAG=${IMAGE_NAME}:${BUILD}
 
 LDFLAGS=-ldflags "-X main.Build=${BUILD}"
