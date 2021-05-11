@@ -33,6 +33,7 @@ build: $(wildcard *.go)
 	ln -s ${NAME} build/check
 	ln -s ${NAME} build/in
 	ln -s ${NAME} build/out
+	echo ${BUILD} > build/.version
 
 .PHONY: clean
 clean:
