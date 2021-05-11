@@ -14,7 +14,8 @@
 
 TREE_NAME=$(shell git write-tree)
 DIRTY_MARK=-dirty-$(shell git rev-parse --short ${TREE_NAME})
-BUILD:=$(shell git describe --always --dirty=${DIRTY_MARK})-$(shell date +%s)
+# add -$(shell date +%s) when you want unique versions for every build
+BUILD:=$(shell git describe --always --dirty=${DIRTY_MARK})
 
 ifeq (${REGISTRY},)
 	REGISTRY=localhost:5000
