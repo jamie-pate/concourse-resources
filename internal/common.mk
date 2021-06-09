@@ -34,6 +34,7 @@ build: $(wildcard *.go)
 	ln -s ${NAME} build/check
 	ln -s ${NAME} build/in
 	ln -s ${NAME} build/out
+	[ -x askpass.sh ] && cp askpass.sh build/askpass.sh
 	echo ${BUILD} > build/.version
 
 .PHONY: clean

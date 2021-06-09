@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"path"
 	"strings"
 
 	"golang.org/x/build/gerrit"
@@ -33,21 +35,88 @@ type authManager struct {
 	cookies      string
 	cookiesPath_ string
 
-	username      string
-	password      string
-	digest        bool
-	sshPrivateKey string
-	credsPath_    string
+	username                string
+	password                string
+	digest                  bool
+	sshPrivateKeyPassphrase string
+	sshPrivateKey           string
+	credsPath_              string
+	sshAgentVars            []string
 }
 
 func newAuthManager(source Source) *authManager {
 	return &authManager{
-		cookies:       source.Cookies,
-		username:      source.Username,
-		password:      source.Password,
-		digest:        source.DigestAuth,
-		sshPrivateKey: source.PrivateKey,
+		cookies:                 source.Cookies,
+		username:                source.Username,
+		password:                source.Password,
+		digest:                  source.DigestAuth,
+		sshPrivateKey:           source.PrivateKey,
+		sshPrivateKeyPassphrase: source.PrivateKeyPassphrase,
 	}
+}
+
+func (am *authManager) sshKillAgent() {
+	if len(am.sshAgentVars) > 0 {
+		cmd := exec.Command("ssh-agent", "-k")
+		cmd.Env = append(os.Environ(), am.sshAgentVars...)
+		cmd.Run()
+		am.sshAgentVars = []string{}
+	}
+}
+
+func (am *authManager) sshAddKey() (err error) {
+	err = nil
+	// similar to https://github.com/concourse/git-resource/blob/master/assets/common.sh#L17
+	if am.sshPrivateKey != "" {
+		credsPath, err := storePrivateKey(am.sshPrivateKey)
+		if err != nil {
+			return err
+		}
+		// ensure that this will be cleaned up at the end
+		am.credsPath_ = credsPath
+		output, err := exec.Command("ssh-agent", "-s").CombinedOutput()
+		if err != nil {
+			return err
+		}
+
+		// -s ensures bash style variable assignments
+		//keep variable assignments, remove everything else...
+		//SSH_AUTH_SOCK=/tmp/ssh-ozasB2N7ff0j/agent.111798; export SSH_AUTH_SOCK;
+		//SSH_AGENT_PID=111799; export SSH_AGENT_PID;
+		//echo Agent pid 111799;`
+		vars := []string{}
+		lines := strings.Split(string(output), "\n")
+		for _, s := range lines {
+			assignment := strings.Split(s, ";")
+			if len(assignment) > 0 && strings.Contains(assignment[0], "=") {
+				vars = append(vars, assignment[0])
+				envVar := strings.Split(assignment[0], "=")
+				if len(envVar) >= 2 {
+					os.Setenv(envVar[0], envVar[1])
+				}
+			}
+		}
+		am.sshAgentVars = vars
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command("ssh-add", credsPath)
+		executablePath, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		vars = append(vars,
+			fmt.Sprintf("GIT_SSH_PRIVATE_KEY_PASS=%s", am.sshPrivateKeyPassphrase),
+			"SSH_ASKPASS_REQUIRE=force",
+			fmt.Sprintf("SSH_ASKPASS=%s", path.Join(path.Dir(executablePath), "askpass.sh")),
+			"DISPLAY=",
+		)
+		cmd.Env = append(os.Environ(),
+			vars...,
+		)
+		_, err = cmd.CombinedOutput()
+	}
+	return err
 }
 
 func (am *authManager) cookiesPath() (string, error) {
@@ -68,21 +137,15 @@ func (am *authManager) credsPath() (string, error) {
 	}
 
 	var err error
-	if am.credsPath_ == "" {
-		if am.sshPrivateKey != "" {
-			am.credsPath_, err = storePrivateKey(am.sshPrivateKey)
-			// func() closure to capture error result
-			// last line is 'return err' instead of 'return nil'
-		} else {
-			// See: https://www.kernel.org/pub/software/scm/git/docs/git-credential.html#IOFMT
-			if strings.ContainsAny(am.username, "\x00\n") ||
-				strings.ContainsAny(am.password, "\x00\n") {
-				return "", errors.New("invalid character in username or password")
-			}
-			am.credsPath_, err = writeAuthTempFile(
-				"concourse-gerrit-creds",
-				fmt.Sprintf("username=%s\npassword=%s\n", am.username, am.password))
+	if am.credsPath_ == "" && am.sshPrivateKey == "" {
+		// See: https://www.kernel.org/pub/software/scm/git/docs/git-credential.html#IOFMT
+		if strings.ContainsAny(am.username, "\x00\n") ||
+			strings.ContainsAny(am.password, "\x00\n") {
+			return "", errors.New("invalid character in username or password")
 		}
+		am.credsPath_, err = writeAuthTempFile(
+			"concourse-gerrit-creds",
+			fmt.Sprintf("username=%s\npassword=%s\n", am.username, am.password))
 	}
 	return am.credsPath_, err
 }
@@ -111,12 +174,9 @@ func (am *authManager) gitConfigArgs() (map[string]string, error) {
 	args := make(map[string]string)
 	if am.sshPrivateKey != "" {
 		// -F /dev/null is paranoia to prevent any other ssh config from being used
-		credsPath, err := am.credsPath()
-		if err != nil {
-			return nil, err
-		}
 		// TODO: replace -o StrictHostKeyChecking=no with an explicit host fingerprint!
-		args["core.sshCommand"] = fmt.Sprintf("ssh -i '%v' -F /dev/null -o StrictHostKeyChecking=no", credsPath)
+		am.sshAddKey()
+		args["core.sshCommand"] = "ssh -F /dev/null -o StrictHostKeyChecking=no"
 	} else if am.username != "" {
 		// See: https://www.kernel.org/pub/software/scm/git/docs/technical/api-credentials.html#_credential_helpers
 		credsPath, err := am.credsPath()
@@ -154,6 +214,7 @@ func (am *authManager) cleanup() {
 		}
 		am.cookiesPath_ = ""
 	}
+	am.sshKillAgent()
 }
 
 func writeAuthTempFile(suffix string, contents string) (string, error) {
