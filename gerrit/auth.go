@@ -38,6 +38,7 @@ type authManager struct {
 	username                string
 	password                string
 	digest                  bool
+	sshPrivateKeyUser       string
 	sshPrivateKeyPassphrase string
 	sshPrivateKey           string
 	credsPath_              string
@@ -50,6 +51,7 @@ func newAuthManager(source Source) *authManager {
 		username:                source.Username,
 		password:                source.Password,
 		digest:                  source.DigestAuth,
+		sshPrivateKeyUser:       source.PrivateKeyUser,
 		sshPrivateKey:           source.PrivateKey,
 		sshPrivateKeyPassphrase: source.PrivateKeyPassphrase,
 	}
@@ -176,7 +178,11 @@ func (am *authManager) gitConfigArgs() (map[string]string, error) {
 		// -F /dev/null is paranoia to prevent any other ssh config from being used
 		// TODO: replace -o StrictHostKeyChecking=no with an explicit host fingerprint!
 		am.sshAddKey()
-		args["core.sshCommand"] = "ssh -F /dev/null -o StrictHostKeyChecking=no"
+		userFlag := ""
+		if am.sshPrivateKeyUser != "" {
+			userFlag = fmt.Sprintf(" -l %s -vv", am.sshPrivateKeyUser)
+		}
+		args["core.sshCommand"] = fmt.Sprintf("ssh -F /dev/null -o StrictHostKeyChecking=no%s", userFlag)
 	} else if am.username != "" {
 		// See: https://www.kernel.org/pub/software/scm/git/docs/technical/api-credentials.html#_credential_helpers
 		credsPath, err := am.credsPath()

@@ -23,7 +23,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"golang.org/x/build/gerrit"
 
@@ -90,12 +89,14 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
+
 	configArgs, err := authMan.gitConfigArgs()
 	if err != nil {
 		return fmt.Errorf("error getting git config args: %v", err)
 	}
 	for key, value := range configArgs {
-		err = git(req.TargetDir(), "config", key, value)
+		// Set the config as global because otherwise it won't affect submodules
+		err = git(req.TargetDir(), "config", "--global", key, value)
 		if err != nil {
 			return err
 		}
@@ -206,21 +207,6 @@ func fetchFlags(src Source, flags ...string) []string {
 
 func resolveFetchUrlRef(src Source, rev *gerrit.RevisionInfo) (url, ref string, err error) {
 	url = src.FetchUrl
-	if src.PrivateKeyUser != "" {
-		if !strings.HasPrefix(url, "ssh://") {
-			return "", "", fmt.Errorf("FetchUrl '%v' is not an ssh url, but PrivateKeyUser was set", url)
-		}
-		parts := strings.SplitAfterN(url, "ssh://", 2)
-		if len(parts) != 2 {
-			return "", "", fmt.Errorf(
-				"Unable to split fetchUrl %v to insert the privateKeyUser, got the wrong length: %v for %v",
-				url,
-				len(parts),
-				parts,
-			)
-		}
-		url = fmt.Sprintf("%s%s@%s", parts[0], src.PrivateKeyUser, parts[1])
-	}
 	ref = rev.Ref
 	if url == "" {
 		fetchProtocol := src.FetchProtocol
