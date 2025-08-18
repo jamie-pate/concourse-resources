@@ -60,6 +60,8 @@ The repository is cloned and the given revision is checked out.
 * `fetch_url`: A URL to the Gerrit git repository where the given revision can
   be found. Overrides `fetch_protocol`.
 
+* `skip_submodules`: A list of submodules to skip when checking out
+
 ### `out`
 
 The given revision is updated with the given message and/or label(s).

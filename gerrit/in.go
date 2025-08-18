@@ -124,6 +124,13 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
+
+	for _, m := range src.SkipSubmodules {
+		err = git(dir, "config", fmt.Sprintf("submodule.\"%s\".update", m), "none")
+		if err != nil {
+			return err
+		}
+	}
 	err = git(dir, fetchFlags(src, "submodule", "update", "--init", "--recursive")...)
 	if err != nil {
 		return err
