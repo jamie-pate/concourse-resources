@@ -33,7 +33,7 @@ type Source struct {
 	DigestAuth           bool     `json:"digest_auth"`
 	FetchProtocol        string   `json:"fetch_protocol"`
 	FetchUrl             string   `json:"fetch_url"`
-	SkipSubmodules       []string `json:"skip_submodules,omitempty`
+	SkipSubmodules       []string `json:"skip_submodules"`
 	PrivateKey           string   `json:"private_key"`
 	PrivateKeyUser       string   `json:"private_key_user"`
 	PrivateKeyPassphrase string   `json:"private_key_passphrase"`

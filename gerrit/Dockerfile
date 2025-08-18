@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM concourse/buildroot:git
+FROM alpine:3.22
 
+RUN apk --no-cache add git gnupg openssh bash
 WORKDIR /opt/resource
 
 ADD gerrit-resource .
 ADD askpass.sh .
+RUN git config --global init.defaultBranch main
 RUN chmod +x gerrit-resource
 RUN ln -s gerrit-resource check
 RUN ln -s gerrit-resource in

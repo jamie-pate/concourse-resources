@@ -1,0 +1,77 @@
+resources:
+  - name: concourse-resources-origin
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/jamie-pate/concourse-resources
+      branch: master
+  - name: gerrit-resource
+    type: registry-image
+    icon: oci
+    source:
+      username: ((registry.username))
+      password: ((registry.password))
+      repository: ((cr))/gerrit-resource
+    # type: registry-image
+    # source:
+    #   repository: ((registry))/gerrit-resource
+jobs:
+  - name: image-push
+    plan:
+      # Trigger this job for every new commit
+      - get: concourse-resources-origin
+        version: every
+        trigger: true
+      - task: build
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: golang
+              tag: 1.24-bookworm
+          inputs:
+            - name: concourse-resources-origin
+              path: go/src/github.com/google/concourse-resources
+          outputs:
+            - name: concourse-resources
+              path: go/src/github.com/google/concourse-resources
+          run:
+            path: /bin/sh
+            args:
+              - -c
+              - |
+                GOPATH=$PWD/go
+                cd go/src/github.com/google/concourse-resources
+                go version
+                set -x
+                go mod init
+                go mod vendor
+                cd gerrit
+                make build
+                cp Dockerfile build/
+                ls build/*
+                echo latest >> build/.version
+      - task: build-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              # https://github.com/concourse/oci-build-task
+              repository: concourse/oci-build-task
+              tag: '0.14'
+          params:
+            CONTEXT: go/src/github.com/google/concourse-resources/gerrit/build
+          inputs:
+            - name: concourse-resources
+              path: go/src/github.com/google/concourse-resources
+          outputs:
+            - name: image
+          run:
+            path: build
+      - put: gerrit-resource
+        params:
+          image: image/image.tar
+          additional_tags: concourse-resources/gerrit/build/.version

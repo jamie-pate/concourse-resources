@@ -38,6 +38,16 @@ resource_types:
 
 * `digest_auth`: If `true`, use HTTP Digest auth instead of Basic auth.
 
+* `fetch_protocol`: A protocol name used to resolve a fetch URL for the given
+  revision. For more information see the `fetch` field in the
+  [Gerrit REST API documenation](https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#revision-info).
+  Defaults to `http` or `anonymous http` if available.
+
+* `fetch_url`: A URL to the Gerrit git repository where the given revision can
+  be found. Overrides `fetch_protocol`.
+
+* `skip_submodules`: A list of submodules to skip when checking out
+
 ## Behavior
 
 ### `check`: Check for new revisions.
@@ -52,15 +62,7 @@ The repository is cloned and the given revision is checked out.
 
 #### Parameters
 
-* `fetch_protocol`: A protocol name used to resolve a fetch URL for the given
-  revision. For more information see the `fetch` field in the
-  [Gerrit REST API documenation](https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#revision-info).
-  Defaults to `http` or `anonymous http` if available.
-
-* `fetch_url`: A URL to the Gerrit git repository where the given revision can
-  be found. Overrides `fetch_protocol`.
-
-* `skip_submodules`: A list of submodules to skip when checking out
+All parameters are now only set in the source configuration
 
 ### `out`
 

@@ -86,6 +86,10 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
+	err = git(dir, "--version")
+	if err != nil {
+		return err
+	}
 	err = git(dir, "config", "color.ui", "always")
 	if err != nil {
 		return err
@@ -125,12 +129,14 @@ func in(req resource.InRequest) error {
 		return err
 	}
 
+	log.Printf("Git skipping submodules %v", src.SkipSubmodules)
 	for _, m := range src.SkipSubmodules {
-		err = git(dir, "config", fmt.Sprintf("submodule.\"%s\".update", m), "none")
+		err = git(dir, "config", fmt.Sprintf("submodule.%s.update", m), "none")
 		if err != nil {
 			return err
 		}
 	}
+
 	err = git(dir, fetchFlags(src, "submodule", "update", "--init", "--recursive")...)
 	if err != nil {
 		return err
