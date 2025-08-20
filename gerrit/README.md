@@ -38,6 +38,8 @@ resource_types:
 
 * `digest_auth`: If `true`, use HTTP Digest auth instead of Basic auth.
 
+* `fetch`: If `true`, clone the project into the resource dir. Can be overridden by the `fetch` `in` parameter
+
 * `fetch_protocol`: A protocol name used to resolve a fetch URL for the given
   revision. For more information see the `fetch` field in the
   [Gerrit REST API documenation](https://gerrit-review.googlesource.com/Documentation/rest-api-changes.html#revision-info).
@@ -59,6 +61,8 @@ updated change is returned.
 ### `in`: Clone the git repository at the given revision.
 
 The repository is cloned and the given revision is checked out.
+
+* `fetch`: Override the source configuration `fetch` parameter.
 
 #### Parameters
 
@@ -113,6 +117,8 @@ jobs:
   - get: example-gerrit
     version: every
     trigger: true
+    params:
+      fetch: true
 
   - task: example-ci
     file: example-gerrit/ci.yml

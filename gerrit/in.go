@@ -41,7 +41,8 @@ var (
 	execGit = realExecGit
 )
 
-type inParams struct {
+type InParams struct {
+	Fetch *bool `json:"fetch"`
 }
 
 func init() {
@@ -51,7 +52,7 @@ func init() {
 func in(req resource.InRequest) error {
 	var src Source
 	var ver Version
-	var params inParams
+	var params InParams
 	err := req.Decode(&src, &ver, &params)
 	if err != nil {
 		return err
@@ -73,73 +74,89 @@ func in(req resource.InRequest) error {
 	if err != nil {
 		return err
 	}
+	fetch := false
+	if params.Fetch != nil {
+		fetch = *params.Fetch
+	} else if src.Fetch != nil {
+		fetch = *src.Fetch
+	}
+	if fetch {
+		fetchUrl, fetchRef, err := resolveFetchUrlRef(src, rev)
+		if err != nil {
+			return fmt.Errorf("could not resolve fetch args for change %q: %v", change.ID, err)
+		}
+		log.Printf("Fetching from %v with %v ssh key len: %v", fetchUrl, src.PrivateKeyUser, len(src.PrivateKey))
 
-	fetchUrl, fetchRef, err := resolveFetchUrlRef(src, rev)
-	if err != nil {
-		return fmt.Errorf("could not resolve fetch args for change %q: %v", change.ID, err)
-	}
-	log.Printf("Fetching from %v with %v ssh key len: %v", fetchUrl, src.PrivateKeyUser, len(src.PrivateKey))
-
-	// Prepare destination repo and checkout requested revision
-	log.Printf("Checking out in %v", dir)
-	err = git(dir, "init")
-	if err != nil {
-		return err
-	}
-	err = git(dir, "--version")
-	if err != nil {
-		return err
-	}
-	err = git(dir, "config", "color.ui", "always")
-	if err != nil {
-		return err
-	}
-	configArgs, err := authMan.gitConfigArgs()
-	if err != nil {
-		return fmt.Errorf("error getting git config args: %v", err)
-	}
-	for key, value := range configArgs {
-		err = git(req.TargetDir(), "config", key, value)
+		// Prepare destination repo and checkout requested revision
+		log.Printf("Checking out in %v", dir)
+		err = git(dir, "init")
 		if err != nil {
 			return err
 		}
-	}
-
-	err = git(dir, "--version")
-	if err != nil {
-		return err
-	}
-	err = git(dir, "remote", "add", "origin", fetchUrl)
-	if err != nil {
-		return err
-	}
-
-	err = git(dir, fetchFlags(src, "fetch", "origin", fetchRef)...)
-	if err != nil {
-		return err
-	}
-
-	err = git(dir, "checkout", "FETCH_HEAD")
-	log.Printf("Git checkout %v", dir)
-	if err != nil {
-		return err
-	}
-	err = git(dir, "config", "--global", "--add", "safe.directory", dir)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Git skipping submodules %v", src.SkipSubmodules)
-	for _, m := range src.SkipSubmodules {
-		err = git(dir, "config", fmt.Sprintf("submodule.%s.update", m), "none")
+		err = git(dir, "--version")
 		if err != nil {
 			return err
 		}
-	}
+		err = git(dir, "config", "color.ui", "always")
+		if err != nil {
+			return err
+		}
+		err = git(dir, "config", "advice.detachedHead", "false")
+		if err != nil {
+			return err
+		}
+		configArgs, err := authMan.gitConfigArgs()
+		if err != nil {
+			return fmt.Errorf("error getting git config args: %v", err)
+		}
+		for key, value := range configArgs {
+			err = git(req.TargetDir(), "config", key, value)
+			if err != nil {
+				return err
+			}
+		}
 
-	err = git(dir, fetchFlags(src, "submodule", "update", "--init", "--recursive")...)
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		err = git(dir, "remote", "add", "origin", fetchUrl)
+		if err != nil {
+			return err
+		}
+
+		err = git(dir, fetchFlags(src, "fetch", "origin", fetchRef)...)
+		if err != nil {
+			return err
+		}
+
+		err = git(dir, "checkout", "FETCH_HEAD")
+		log.Printf("Git checkout %v", dir)
+		if err != nil {
+			return err
+		}
+		err = git(dir, "config", "--global", "--add", "safe.directory", dir)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Git skipping submodules %v", src.SkipSubmodules)
+		for _, m := range src.SkipSubmodules {
+			err = git(dir, "config", fmt.Sprintf("submodule.%s.update", m), "none")
+			if err != nil {
+				return err
+			}
+		}
+
+		err = git(dir, fetchFlags(src, "submodule", "update", "--init", "--recursive")...)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.Printf("Writing %s", gerritVersionFilename)
+		err = os.MkdirAll(dir, 0600)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Build response metadata

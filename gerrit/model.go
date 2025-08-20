@@ -31,6 +31,7 @@ type Source struct {
 	Username             string   `json:"username"`
 	Password             string   `json:"password"`
 	DigestAuth           bool     `json:"digest_auth"`
+	Fetch                *bool    `json:"fetch"`
 	FetchProtocol        string   `json:"fetch_protocol"`
 	FetchUrl             string   `json:"fetch_url"`
 	SkipSubmodules       []string `json:"skip_submodules"`
