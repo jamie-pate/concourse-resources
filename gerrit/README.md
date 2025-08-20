@@ -112,6 +112,23 @@ resources:
 
 jobs:
 - name: example-ci
+  on_failure:
+    put: example-gerrit
+    params:
+      repository: example-gerrit
+      message: 'CI failed: ${BUILD_URL}'
+      Labels: {Verified: -1}
+  on_abort:
+    put: example-gerrit
+    params:
+      repository: example-gerrit
+      message: 'CI abort: ${BUILD_URL}'
+  on_error:
+    put: example-gerrit
+    params:
+      repository: example-gerrit
+      message: CI error! ${BUILD_URL}
+      labels: {Verified: -1}
   plan:
   # Trigger this job for every new patch set
   - get: example-gerrit
@@ -119,6 +136,15 @@ jobs:
     trigger: true
     params:
       fetch: true
+  # Push a message to the gerrit changeset and reset the verified label
+  # NOTE: this creates a separate resource called 'ci-started' since otherwise
+  # it would overwrite the `example-gerrit` resource
+  - put: ci-started
+    resource: example-gerrit
+    params:
+      repository: example-gerrit
+      message: CI started ${BUILD_URL}
+      labels: {Verified: 0}
 
   - task: example-ci
     file: example-gerrit/ci.yml
@@ -127,6 +153,6 @@ jobs:
   - put: example-gerrit
     params:
       repository: example-gerrit
-      message: CI passed!
+      message: CI passed ${BUILD_URL}!
       labels: {Verified: 1}
 ```
