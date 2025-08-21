@@ -14,7 +14,7 @@
 
 FROM alpine:3.22
 
-RUN apk --no-cache add git gnupg openssh bash
+RUN apk --no-cache add git gnupg openssh bash git-lfs
 WORKDIR /opt/resource
 
 ADD gerrit-resource .
