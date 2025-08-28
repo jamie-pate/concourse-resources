@@ -63,10 +63,12 @@ updated change is returned.
 The repository is cloned and the given revision is checked out.
 
 * `fetch`: Override the source configuration `fetch` parameter.
+* `sparse`: List of arguments to pass to `git checkout sparse [...args]`
+  * see [git-sparse-checkout set](https://git-scm.com/docs/git-sparse-checkout#Documentation/git-sparse-checkout.txt-set)
 
 #### Parameters
 
-All parameters are now only set in the source configuration
+All other parameters are now only set in the source configuration
 
 ### `out`
 
@@ -109,6 +111,7 @@ resources:
     url: https://review.example.com
     query: status:open project:example
     cookies: ((gerrit-cookies))
+    depth: 1
 
 jobs:
 - name: example-ci
@@ -136,6 +139,10 @@ jobs:
     trigger: true
     params:
       fetch: true
+      sparse:
+        - /*
+        - '!/*/'
+        - extradir
   # Push a message to the gerrit changeset and reset the verified label
   # NOTE: this creates a separate resource called 'ci-started' since otherwise
   # it would overwrite the `example-gerrit` resource

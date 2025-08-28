@@ -42,7 +42,8 @@ var (
 )
 
 type InParams struct {
-	Fetch *bool `json:"fetch"`
+	Fetch  *bool     `json:"fetch"`
+	Sparse *[]string `json:"sparse"`
 }
 
 func init() {
@@ -115,10 +116,14 @@ func in(req resource.InRequest) error {
 				return err
 			}
 		}
-
-		if err != nil {
-			return err
+		if params.Sparse != nil {
+			sparseCheckoutArgs := append([]string{"sparse-checkout", "set"}, *params.Sparse...)
+			err = git(dir, sparseCheckoutArgs...)
+			if err != nil {
+				return err
+			}
 		}
+
 		err = git(dir, "remote", "add", "origin", fetchUrl)
 		if err != nil {
 			return err
