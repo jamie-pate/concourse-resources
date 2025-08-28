@@ -66,6 +66,9 @@ The repository is cloned and the given revision is checked out.
 * `sparse`: List of arguments to pass to `git checkout sparse [...args]`
   * see [git-sparse-checkout set](https://git-scm.com/docs/git-sparse-checkout#Documentation/git-sparse-checkout.txt-set)
 
+A `.gerrit_version.json` file is written with the version info
+A `.gerrit_patchset.json` file is written with the patchset info (e.g. `{"change": 1234, "patch_set": 2}`)
+
 #### Parameters
 
 All other parameters are now only set in the source configuration

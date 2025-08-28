@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/build/gerrit"
@@ -31,7 +33,8 @@ import (
 )
 
 const (
-	gerritVersionFilename = ".gerrit_version.json"
+	gerritVersionFilename  = ".gerrit_version.json"
+	gerritPatchsetFilename = ".gerrit_patchset.json"
 )
 
 var (
@@ -44,6 +47,20 @@ var (
 type InParams struct {
 	Fetch  *bool     `json:"fetch"`
 	Sparse *[]string `json:"sparse"`
+}
+
+type PatchSetInfo struct {
+	Change   int `json:"change"`
+	PatchSet int `json:"patch_set"`
+}
+
+func (psi PatchSetInfo) WriteToFile(path string) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(psi)
 }
 
 func init() {
@@ -217,6 +234,21 @@ func in(req resource.InRequest) error {
 	err = ver.WriteToFile(gerritVersionPath)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %v", gerritVersionPath, err)
+	}
+
+	proj_and_change_num := strings.Split(ver.ChangeId, "~")
+	change_num, err := strconv.Atoi(proj_and_change_num[1])
+	if err != nil {
+		return fmt.Errorf("Error extracting change number from changeid %s: %v", ver.ChangeId, err)
+	}
+	patchSetInfo := PatchSetInfo{
+		Change:   change_num,
+		PatchSet: rev.PatchSetNumber,
+	}
+	gerritPatchsetPath := filepath.Join(dir, gerritPatchsetFilename)
+	err = patchSetInfo.WriteToFile(gerritPatchsetPath)
+	if err != nil {
+		return fmt.Errorf("error writing %q: %v", gerritPatchsetPath, err)
 	}
 
 	// Ignore gerrit_version.json file in repo
