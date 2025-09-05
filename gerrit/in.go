@@ -193,10 +193,8 @@ func in(req resource.InRequest) error {
 
 	for label, labelInfo := range change.Labels {
 		for _, approvalInfo := range labelInfo.All {
-			if approvalInfo.Value != 0 {
-				req.AddResponseMetadata("change label",
-					fmt.Sprintf("%s %+d (%s)", label, approvalInfo.Value, approvalInfo.Name))
-			}
+			req.AddResponseMetadata("change label",
+				fmt.Sprintf("%s %+d (%s)", label, approvalInfo.Value, approvalInfo.Name))
 		}
 	}
 
