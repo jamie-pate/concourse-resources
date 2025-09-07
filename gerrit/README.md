@@ -67,7 +67,7 @@ The repository is cloned and the given revision is checked out.
   * see [git-sparse-checkout set](https://git-scm.com/docs/git-sparse-checkout#Documentation/git-sparse-checkout.txt-set)
 
 A `.gerrit_version.json` file is written with the version info
-A `.gerrit_patchset.json` file is written with the patchset info (e.g. `{"change": 1234, "patch_set": 2}`)
+A `.gerrit_patchset.json` file is written with the patchset info (e.g. `{"change": 1234, "patch_set": 2, "branch": "branch_name"}`)
 
 #### Parameters
 

@@ -50,8 +50,9 @@ type InParams struct {
 }
 
 type PatchSetInfo struct {
-	Change   int `json:"change"`
-	PatchSet int `json:"patch_set"`
+	Change   int  `json:"change"`
+	PatchSet int  `json:"patch_set"`
+	Branch string `json:"branch"`
 }
 
 func (psi PatchSetInfo) WriteToFile(path string) error {
@@ -242,6 +243,7 @@ func in(req resource.InRequest) error {
 	patchSetInfo := PatchSetInfo{
 		Change:   change_num,
 		PatchSet: rev.PatchSetNumber,
+		Branch:   change.Branch,
 	}
 	gerritPatchsetPath := filepath.Join(dir, gerritPatchsetFilename)
 	err = patchSetInfo.WriteToFile(gerritPatchsetPath)
