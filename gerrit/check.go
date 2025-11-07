@@ -95,7 +95,11 @@ func check(req resource.CheckRequest) error {
 
 		query = fmt.Sprintf("(%s) AND after:{%s}",
 			query, afterTime.UTC().Format(timeStampLayout))
-		queryOpt.Fields = []string{"ALL_REVISIONS"}
+		if src.PatchsetVersions == "every" {
+			queryOpt.Fields = []string{"ALL_REVISIONS"}
+		} else {
+			queryOpt.Fields = []string{"CURRENT_REVISION"}
+		}
 		wantRequestedVersion = true
 	}
 

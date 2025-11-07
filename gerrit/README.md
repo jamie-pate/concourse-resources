@@ -28,6 +28,9 @@ resource_types:
   `status:open project:my-project`. See Gerrit documentation on
   [Searching Changes](https://gerrit-documentation.storage.googleapis.com/Documentation/2.14.2/user-search.html).
 
+* `patchset_versions`: `every|latest`, defaults to `latest`. Fetch all patchsets or only
+  the latest patchset for each change.
+
 * `cookies`: A string containing cookies in "Netscape cookie file format" (as
   supported by libcurl) to be used when connecting to Gerrit.  Usually used for
   authentication.

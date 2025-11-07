@@ -27,6 +27,7 @@ const (
 type Source struct {
 	Url                  string   `json:"url"`
 	Query                string   `json:"query"`
+	PatchsetVersions     string   `json:"patchset_versions"`
 	Cookies              string   `json:"cookies"`
 	Username             string   `json:"username"`
 	Password             string   `json:"password"`
