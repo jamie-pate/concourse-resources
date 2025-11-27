@@ -23,7 +23,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"golang.org/x/build/gerrit"
@@ -65,6 +67,9 @@ func check(req resource.CheckRequest) error {
 		query = defaultQuery
 	}
 
+	if src.WithComment != "" {
+		query = fmt.Sprintf("(%s) AND comment:{%s}", query, src.WithComment)
+	}
 	var afterTime time.Time
 
 	queryOpt := gerrit.QueryChangesOpt{}
@@ -125,6 +130,13 @@ func check(req resource.CheckRequest) error {
 
 	// Translate Gerrit changes into Versions
 	versions := VersionList{}
+	var with_comment_regex *regexp.Regexp
+	if strings.HasPrefix(src.WithComment, "^") {
+		with_comment_regex, err = regexp.Compile(src.WithComment)
+		if err != nil {
+			return fmt.Errorf("error compiling with_comment regex: %v", err)
+		}
+	}
 	for _, change := range changes {
 		for revision, revisionInfo := range change.Revisions {
 			include := false
@@ -133,7 +145,31 @@ func check(req resource.CheckRequest) error {
 				include = true
 				wantRequestedVersion = false
 			} else {
-				include = created.After(afterTime)
+				if src.WithComment != "" {
+					comments, err := c.ListChangeComments(ctx, change.ID)
+					if err != nil {
+						return fmt.Errorf("error listing change comments: %v", err)
+					}
+					for _, comment_infos := range comments {
+						for _, c := range comment_infos {
+							var comment_match = false
+							if with_comment_regex != nil {
+								comment_match = with_comment_regex.MatchString(c.Message)
+							} else {
+								comment_match = strings.Contains(c.Message, src.WithComment)
+							}
+							if comment_match && c.Updated.Time().After(afterTime) {
+								include = true
+								break
+							}
+						}
+						if include {
+							break
+						}
+					}
+				} else {
+					include = created.After(afterTime)
+				}
 			}
 			if include {
 				versions = append(versions, Version{

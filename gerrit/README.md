@@ -28,6 +28,8 @@ resource_types:
   `status:open project:my-project`. See Gerrit documentation on
   [Searching Changes](https://gerrit-documentation.storage.googleapis.com/Documentation/2.14.2/user-search.html).
 
+* `with_comment`: A string containing a comment search expression.
+
 * `patchset_versions`: `every|latest`, defaults to `latest`. Fetch all patchsets or only
   the latest patchset for each change.
 
