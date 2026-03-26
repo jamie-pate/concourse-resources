@@ -50,9 +50,9 @@ type InParams struct {
 }
 
 type PatchSetInfo struct {
-	Change   int  `json:"change"`
-	PatchSet int  `json:"patch_set"`
-	Branch string `json:"branch"`
+	Change   int    `json:"change"`
+	PatchSet int    `json:"patch_set"`
+	Branch   string `json:"branch"`
 }
 
 func (psi PatchSetInfo) WriteToFile(path string) error {
@@ -100,6 +100,10 @@ func in(req resource.InRequest) error {
 		fetch = *src.Fetch
 	}
 	if fetch {
+		err = src.WriteSshConfig()
+		if err != nil {
+			return err
+		}
 		fetchUrl, fetchRef, err := resolveFetchUrlRef(src, rev)
 		if err != nil {
 			return fmt.Errorf("could not resolve fetch args for change %q: %v", change.ID, err)

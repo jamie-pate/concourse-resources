@@ -48,6 +48,11 @@ func out(req resource.OutRequest) error {
 		return err
 	}
 
+	err = src.WriteSshConfig()
+	if err != nil {
+		return err
+	}
+
 	authMan := newAuthManager(src)
 	defer authMan.cleanup()
 

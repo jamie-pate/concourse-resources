@@ -16,6 +16,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 	"time"
 )
@@ -41,6 +43,7 @@ type Source struct {
 	PrivateKeyUser       string   `json:"private_key_user"`
 	PrivateKeyPassphrase string   `json:"private_key_passphrase"`
 	Depth                int      `json:"depth"`
+	SshConfig            string   `json:"ssh_config"`
 }
 
 type Version struct {
@@ -85,4 +88,26 @@ func (vl VersionList) Less(i, j int) bool {
 
 func (vl VersionList) Swap(i, j int) {
 	vl[i], vl[j] = vl[j], vl[i]
+}
+
+func (src Source) WriteSshConfig() error {
+	if src.SshConfig != "" {
+		ssh_config_dir := fmt.Sprint("%v/.ssh", os.Getenv("HOME"))
+		ssh_config_file := fmt.Sprintf("%v/config", ssh_config_dir)
+		log.Printf("Writing ssh_config to %v", ssh_config_file)
+		err := os.MkdirAll(ssh_config_dir, 0700)
+		if err != nil {
+			return err
+		}
+		f, err := os.OpenFile(ssh_config_file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = f.WriteString(src.SshConfig)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

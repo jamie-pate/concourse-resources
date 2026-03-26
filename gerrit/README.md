@@ -55,6 +55,8 @@ resource_types:
 
 * `skip_submodules`: A list of submodules to skip when checking out
 
+* `ssh_config`: SSH config that can help when fetching submodules, etc.
+
 ## Behavior
 
 ### `check`: Check for new revisions.
@@ -120,6 +122,10 @@ resources:
     query: status:open project:example
     cookies: ((gerrit-cookies))
     depth: 1
+    fetch_url: ssh://review.example.com:29418/example
+    ssh_config: |
+      Host review.example.com
+      User ciuser
 
 jobs:
 - name: example-ci
