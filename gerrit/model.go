@@ -92,7 +92,7 @@ func (vl VersionList) Swap(i, j int) {
 
 func (src Source) WriteSshConfig() error {
 	if src.SshConfig != "" {
-		ssh_config_dir := fmt.Sprint("%v/.ssh", os.Getenv("HOME"))
+		ssh_config_dir := fmt.Sprintf("%v/.ssh", os.Getenv("HOME"))
 		ssh_config_file := fmt.Sprintf("%v/config", ssh_config_dir)
 		log.Printf("Writing ssh_config to %v", ssh_config_file)
 		err := os.MkdirAll(ssh_config_dir, 0700)
